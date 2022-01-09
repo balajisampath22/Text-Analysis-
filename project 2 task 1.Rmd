@@ -1,0 +1,68 @@
+---
+title: "IE 5374 - Sec 1 - Group 14 - Project 2 - Task 1"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r, Libraries}
+library(igraph)
+library(Matrix)
+library(tidyverse)
+library(tibble)
+library(dplyr)
+library(ggplot2)
+library(plyr)
+```
+
+```{r Data, include=TRUE}
+# Task 1
+setwd("~/Downloads")
+getwd()
+ad<-read.csv('ad.csv', na.strings = "")
+
+```
+
+
+```{r Task 2 }
+#Task 2
+#Use the solution from homework 1 question 3.1 as the adjacency matrix and Read the adjacency matrix and convert it into a weighted network
+
+wn <- graph_from_adjacency_matrix(as.matrix(ad), mode="undirected", weighted = TRUE) #weighted list
+wn 
+```
+
+
+```{r Task 3 }
+#Task 3
+#Compute node degree and strength
+degree <- degree(wn, mode="all") #compute degree for all nodes
+degree
+
+strength <- strength(wn, mode="all") #compute strength for all nodes
+strength
+```
+
+```{r Task 4}
+#Task 4
+#Show the top 10 nodes by degree and top 10 nodes by strength
+head(sort(degree,decreasing=TRUE),n=10) #sort degree in highest to lowest and head top 10 results
+
+head(sort(strength,decreasing=TRUE),n=10) #sort strength in highest to lowest and head top 10 results
+```
+
+```{r Task 5}
+#Task 5
+#Show the top 10 node pairs by weight
+
+cbind( get.edgelist(wn) , round( E(wn)$weight, 3 )) #display edgelist and edge weight
+head(sort(strength,decreasing=TRUE),n=10) #sort above data and diplay top 10 node pairs by weight
+```
+
+```{r Task 6}
+#Task 6
+#Plot average strength on y-axis and degree on x-axis
+df = data.frame(deg=c(degree) , strg=c(strength))
+str(df)
+ggplot(df, aes(x=degree, y=strength)) + geom_bar(position = "dodge", stat = "summary", fun = "mean") # ggplot2 barplot with mean
+```

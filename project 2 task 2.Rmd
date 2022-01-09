@@ -1,0 +1,584 @@
+---
+title: "IE 5374 - Sec 1 - Group 14 - Project 2 - Task 2"
+output:
+  html_document: default
+  pdf_document: default
+---
+```{r, Libraries}
+library(tidyverse)
+library(dplyr)
+library(modelr)
+library(ggplot2)
+library(broom)
+library(tokenizers)
+library(stopwords)
+library(twitteR)
+library(stringi)
+library(tidytext)
+library(igraph)
+library(ggraph)
+```
+
+```{r Data, include=TRUE}
+setwd("~/Downloads")
+getwd()
+wf<-read.csv('2017.csv', na.strings = "")
+wf2018<-read.csv('2018.csv', na.strings = "")
+wf2019<-read.csv('2019.csv', na.strings = "")
+wf2020<-read.csv('2020.csv', na.strings = "")
+wf2021<-read.csv('2021.csv', na.strings = "")
+```
+
+
+#Year 2017
+#Task 2.1.1
+```{r Task 2.1.1}
+#Compute word frequencies for each year. Exclude the stop words
+df <- wf #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2017) #filtering for 2017
+
+
+#Preprocessing
+words$tweet <- gsub("\\shttps://.*$", "", words$tweet) #removing URL's
+words$tweet <- gsub("@\\S+", "",  words$tweet) #removing @'s
+words$tweet <- gsub("#\\S+","", words$tweet) #removing hashtags
+words$tweet <- gsub("amp", "",  words$tweet) #removing &amp's
+words$tweet <- gsub("[[:cntrl:]]","", words$tweet) #removing control character
+words$tweet <- gsub("\\d","", words$tweet) #removing the numbers
+words$tweet <- gsub("[[:punct:]]", "",  words$tweet) #trim punctuation
+words$tweet <- gsub("^[[:space:]]*","", words$tweet) #trim white spaces
+words$tweet <- gsub("[[:space:]]*$","", words$tweet) #trim spaces
+words$tweet <- gsub("\\b\\w{1,2}\\b", "", words$tweet) #removing single letter and two letter words
+words$tweet <- gsub(" +"," ", words$tweet) #removing multiple spaces
+words$tweet <- gsub("â","",words$tweet) #removing special characters
+words$tweet <- gsub("[ºð]", "", words$tweet)
+
+
+#compute word frequency 
+words <- words  %>%
+  unnest_tokens(word, tweet) %>%
+  count(date, word, sort = TRUE)
+
+total_words <- words %>% 
+  group_by(date) %>% 
+  summarize(total = sum(n))
+
+words <- left_join(words, total_words)
+
+#Removing stop words
+Total_words <- anti_join(words, stop_words, by="word")
+
+Total_words
+```
+
+#Task 2.1.2
+```{r Task 2.1.2}
+#Show top 10 words (for each year) by the highest value of word frequency
+a <- data.frame(Total_words$n)
+head(sort(a$Total_words.n, decreasing = TRUE), n=10)
+```
+
+#Task 2.1.3
+```{r Task 2.1.3}
+#Plot histogram of word frequencies for each year
+ggplot(Total_words, aes(n/total, fill = n)) + geom_histogram(show.legend = FALSE) + xlim(NA, 0.0009) +
+facet_wrap(~n, ncol = 3, scales = "free_y")
+```
+
+#Task 2.1.4
+```{r Task 2.1.4}
+#Use Zipf’s law and plot log-log plots of word frequencies and rank for each year
+df <- wf #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2017)
+words$tweet <- dim(words)[1] + 1 - row_number(words$tweet)
+n <- sum(words$tweet)
+words$frequency <- words$tweet / n
+plot <- words 
+
+graph <- words
+ggplot(words, aes(tweet, frequency)) + geom_abline(intercept = -0.62, slope = -1.1, color = "gray50", linetype = 2) +
+geom_line(size = 1.1, alpha = 0.8, show.legend = FALSE) + scale_x_log10() +
+scale_y_log10() + labs(title="Zip's law log log plot", x="Rank", y="Frequency")
+```
+
+
+#Task 2.1.5
+```{r Task 2.1.5}
+#Create bigram network graphs for each year
+#creating bigrams
+df <- wf #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2017)
+
+#creating bigrams
+bigram <- unnest_tokens(words, output="bigram", input=tweet, token = "ngrams", n = 2)
+bigram <- bigram %>% na.omit()
+
+#seperating the words of bigram
+bigram_sep <- bigram %>%  separate(bigram, c('word1','word2'), sep=" ") %>%
+              anti_join(stop_words, by=c("word1"="word")) %>%
+              anti_join(stop_words, by=c("word2"="word"))
+
+#create a edge-node igraph for top 50 bigram words
+bigram_graph <- bigram_sep %>%
+count(word1,word2,sort=TRUE)%>%
+top_n(50) %>%
+graph_from_data_frame()
+
+#visualize the network grapgh
+ggraph(bigram_graph, layout="igraph", algorithm="kk")+ geom_edge_link()+ geom_node_point()+ geom_node_text(aes(label = name), vjust = 1, hjust = 1)+ theme_void()
+```
+
+
+#Year 2018
+#Task 2.2.1
+```{r Task 2.2.1}
+#Compute word frequencies for each year. Exclude the stop words
+df <- wf2018 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2018) #filtering for 2018
+
+
+#Preprocessing
+words$tweet <- gsub("\\shttps://.*$", "", words$tweet) #removing URL's
+words$tweet <- gsub("@\\S+", "",  words$tweet) #removing @'s
+words$tweet <- gsub("#\\S+","", words$tweet) #removing hashtags
+words$tweet <- gsub("amp", "",  words$tweet) #removing &amp's
+words$tweet <- gsub("[[:cntrl:]]","", words$tweet) #removing control character
+words$tweet <- gsub("\\d","", words$tweet) #removing the numbers
+words$tweet <- gsub("[[:punct:]]", "",  words$tweet) #trim punctuation
+words$tweet <- gsub("^[[:space:]]*","", words$tweet) #trim white spaces
+words$tweet <- gsub("[[:space:]]*$","", words$tweet) #trim spaces
+words$tweet <- gsub("\\b\\w{1,2}\\b", "", words$tweet) #removing single letter and two letter words
+words$tweet <- gsub(" +"," ", words$tweet) #removing multiple spaces
+words$tweet <- gsub("â","",words$tweet) #removing special characters
+words$tweet <- gsub("[ºð]", "", words$tweet)
+
+
+#compute word frequency 
+words <- words  %>%
+  unnest_tokens(word, tweet) %>%
+  count(date, word, sort = TRUE)
+
+total_words <- words %>% 
+  group_by(date) %>% 
+  summarize(total = sum(n))
+
+words <- left_join(words, total_words)
+
+#Removing stop words
+Total_words <- anti_join(words, stop_words, by="word")
+
+Total_words
+```
+
+#Task 2.2.2
+```{r Task 2.2.2}
+#Show top 10 words (for each year) by the highest value of word frequency
+a <- data.frame(Total_words$n)
+head(sort(a$Total_words.n, decreasing = TRUE), n=20)
+```
+
+#Task 2.2.3
+```{r Task 2.2.3}
+#Plot histogram of word frequencies for each year
+ggplot(Total_words, aes(n/total, fill = n)) + geom_histogram(show.legend = FALSE) + xlim(NA, 0.0009) +
+facet_wrap(~n, ncol = 3, scales = "free_y")
+```
+
+#Task 2.2.4
+```{r Task 2.2.4}
+#Use Zipf’s law and plot log-log plots of word frequencies and rank for each year
+df <- wf2018 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2018) #filtering for 2018
+words$tweet <- dim(words)[1] + 1 - row_number(words$tweet)
+n <- sum(words$tweet)
+words$frequency <- words$tweet / n
+plot <- words 
+
+graph <- words 
+ggplot(words, aes(tweet, frequency)) + geom_abline(intercept = -0.62, slope = -1.1, color = "gray50", linetype = 2) +
+geom_line(size = 1.1, alpha = 0.8, show.legend = FALSE) + scale_x_log10() +
+scale_y_log10() + labs(title="Zip's law log log plot", x="Rank", y="Frequency")
+```
+
+#Task 2.2.5
+```{r Task 2.2.5}
+#Create bigram network graphs for each year
+#creating bigrams
+df <- wf2018 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2018) #filtering for 2018
+#creating bigrams
+bigram <- unnest_tokens(words, output="bigram", input=tweet, token = "ngrams", n = 2)
+bigram <- bigram %>% na.omit()
+
+#seperating the words of bigram
+bigram_sep <- bigram %>%  separate(bigram, c('word1','word2'), sep=" ") %>%
+              anti_join(stop_words, by=c("word1"="word")) %>%
+              anti_join(stop_words, by=c("word2"="word"))
+
+#create a edge-node igraph for top 20 bigram words
+bigram_graph <- bigram_sep %>%
+count(word1,word2,sort=TRUE)%>%
+top_n(20) %>%
+graph_from_data_frame()
+
+#visualize the network grapgh
+ggraph(bigram_graph,
+       layout="igraph",
+       algorithm="kk")+
+  geom_edge_link()+
+  geom_node_point()+
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)+
+  theme_void()
+```
+
+#Year 2019
+#Task 2.3.1
+```{r Task 2.3.1}
+#Compute word frequencies for each year. Exclude the stop words
+df <- wf2019 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2019) #filtering for 2019
+
+
+#Preprocessing
+words$tweet <- gsub("\\shttps://.*$", "", words$tweet) #removing URL's
+words$tweet <- gsub("@\\S+", "",  words$tweet) #removing @'s
+words$tweet <- gsub("#\\S+","", words$tweet) #removing hashtags
+words$tweet <- gsub("amp", "",  words$tweet) #removing &amp's
+words$tweet <- gsub("[[:cntrl:]]","", words$tweet) #removing control character
+words$tweet <- gsub("\\d","", words$tweet) #removing the numbers
+words$tweet <- gsub("[[:punct:]]", "",  words$tweet) #trim punctuation
+words$tweet <- gsub("^[[:space:]]*","", words$tweet) #trim white spaces
+words$tweet <- gsub("[[:space:]]*$","", words$tweet) #trim spaces
+words$tweet <- gsub("\\b\\w{1,2}\\b", "", words$tweet) #removing single letter and two letter words
+words$tweet <- gsub(" +"," ", words$tweet) #removing multiple spaces
+words$tweet <- gsub("â","",words$tweet) #removing special characters
+words$tweet <- gsub("[ºð]", "", words$tweet)
+
+
+#compute word frequency 
+words <- words  %>%
+  unnest_tokens(word, tweet) %>%
+  count(date, word, sort = TRUE)
+
+total_words <- words %>% 
+  group_by(date) %>% 
+  summarize(total = sum(n))
+
+words <- left_join(words, total_words)
+
+#Removing stop words
+Total_words <- anti_join(words, stop_words, by="word")
+
+Total_words
+```
+
+#Task 2.3.2
+```{r Task 2.3.2}
+#Show top 10 words (for each year) by the highest value of word frequency
+a <- data.frame(Total_words$n)
+head(sort(a$Total_words.n, decreasing = TRUE), n=20)
+```
+
+#Task 2.3.3
+```{r Task 2.3.3}
+#Plot histogram of word frequencies for each year
+ggplot(Total_words, aes(n/total, fill = n)) + geom_histogram(show.legend = FALSE) + xlim(NA, 0.0009) +
+facet_wrap(~n, ncol = 3, scales = "free_y")
+```
+
+#Task 2.3.4
+```{r Task 2.3.4}
+#Use Zipf’s law and plot log-log plots of word frequencies and rank for each year
+df <- wf2019 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2019) #filtering for 2019
+words$tweet <- dim(words)[1] + 1 - row_number(words$tweet)
+n <- sum(words$tweet)
+words$frequency <- words$tweet / n
+plot <- words 
+
+graph <- words 
+ggplot(words, aes(tweet, frequency)) + geom_abline(intercept = -0.62, slope = -1.1, color = "gray50", linetype = 2) +
+geom_line(size = 1.1, alpha = 0.8, show.legend = FALSE) + scale_x_log10() +
+scale_y_log10() + labs(title="Zip's law log log plot", x="Rank", y="Frequency")
+```
+
+#Task 2.3.5
+```{r Task 2.3.5}
+
+#Create bigram network graphs for each year
+
+#creating bigrams
+df <- wf2019 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2019) #filtering for 2019
+#creating bigrams
+bigram <- unnest_tokens(words, output="bigram", input=tweet, token = "ngrams", n = 2)
+bigram <- bigram %>% na.omit()
+
+#seperating the words of bigram
+bigram_sep <- bigram %>%  separate(bigram, c('word1','word2'), sep=" ") %>%
+              anti_join(stop_words, by=c("word1"="word")) %>%
+              anti_join(stop_words, by=c("word2"="word"))
+
+#create a edge-node igraph for top 10 bigram words
+bigram_graph <- bigram_sep %>%
+count(word1,word2,sort=TRUE)%>%
+top_n(10) %>%
+graph_from_data_frame()
+
+#visualize the network grapgh
+ggraph(bigram_graph,
+       layout="igraph",
+       algorithm="kk")+
+  geom_edge_link()+
+  geom_node_point()+
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)+
+  theme_void()
+```
+
+#Year 2020
+#Task 2.4.1
+```{r Task 2.4.1}
+#Compute word frequencies for each year. Exclude the stop words
+df <- wf2020 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2020) #filtering for 2020
+
+
+#Preprocessing
+words$tweet <- gsub("\\shttps://.*$", "", words$tweet) #removing URL's
+words$tweet <- gsub("@\\S+", "",  words$tweet) #removing @'s
+words$tweet <- gsub("#\\S+","", words$tweet) #removing hashtags
+words$tweet <- gsub("amp", "",  words$tweet) #removing &amp's
+words$tweet <- gsub("[[:cntrl:]]","", words$tweet) #removing control character
+words$tweet <- gsub("\\d","", words$tweet) #removing the numbers
+words$tweet <- gsub("[[:punct:]]", "",  words$tweet) #trim punctuation
+words$tweet <- gsub("^[[:space:]]*","", words$tweet) #trim white spaces
+words$tweet <- gsub("[[:space:]]*$","", words$tweet) #trim spaces
+words$tweet <- gsub("\\b\\w{1,2}\\b", "", words$tweet) #removing single letter and two letter words
+words$tweet <- gsub(" +"," ", words$tweet) #removing multiple spaces
+words$tweet <- gsub("â","",words$tweet) #removing special characters
+words$tweet <- gsub("[ºð]", "", words$tweet)
+
+
+#compute word frequency 
+words <- words  %>%
+  unnest_tokens(word, tweet) %>%
+  count(date, word, sort = TRUE)
+
+total_words <- words %>% 
+  group_by(date) %>% 
+  summarize(total = sum(n))
+
+words <- left_join(words, total_words)
+
+#Removing stop words
+Total_words <- anti_join(words, stop_words, by="word")
+
+Total_words
+```
+#Task 2.4.2
+```{r Task 2.4.2}
+#Show top 10 words (for each year) by the highest value of word frequency
+a <- data.frame(Total_words$n)
+head(sort(a$Total_words.n, decreasing = TRUE), n=20)
+```
+
+#Task 2.4.3
+```{r Task 2.4.3}
+#Plot histogram of word frequencies for each year
+ggplot(Total_words, aes(n/total, fill = n)) + geom_histogram(show.legend = FALSE) + xlim(NA, 0.0009) +
+facet_wrap(~n, ncol = 3, scales = "free_y")
+```
+
+#Task 2.4.4
+```{r Task 2.4.4}
+# Use Zipf’s law and plot log-log plots of word frequencies and rank for each year
+df <- wf2020 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2020) #filtering for 2020
+words$tweet <- dim(words)[1] + 1 - row_number(words$tweet)
+n <- sum(words$tweet)
+words$frequency <- words$tweet / n
+plot <- words 
+
+graph <- words 
+ggplot(words, aes(tweet, frequency)) + geom_abline(intercept = -0.62, slope = -1.1, color = "gray50", linetype = 2) +
+geom_line(size = 1.1, alpha = 0.8, show.legend = FALSE) + scale_x_log10() +
+scale_y_log10() + labs(title="Zip's law log log plot", x="Rank", y="Frequency")
+```
+
+#Task 2.4.5
+```{r Task 2.4.5}
+#Create bigram network graphs for each year
+#creating bigrams
+df <- wf2020 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2020) #filtering for 2020
+#creating bigrams
+bigram <- unnest_tokens(words, output="bigram", input=tweet, token = "ngrams", n = 2)
+bigram <- bigram %>% na.omit()
+
+#seperating the words of bigram
+bigram_sep <- bigram %>%  separate(bigram, c('word1','word2'), sep=" ") %>%
+              anti_join(stop_words, by=c("word1"="word")) %>%
+              anti_join(stop_words, by=c("word2"="word"))
+
+#create a edge-node igraph for top 40 bigram words
+bigram_graph <- bigram_sep %>%
+count(word1,word2,sort=TRUE)%>%
+top_n(40) %>%
+graph_from_data_frame()
+
+#visualize the network grapgh
+ggraph(bigram_graph,
+       layout="igraph",
+       algorithm="kk")+
+  geom_edge_link()+
+  geom_node_point()+
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)+
+  theme_void()
+```
+
+#Year 2021
+#Task 2.5.1
+```{r Task 2.5.1}
+#Compute word frequencies for each year. Exclude the stop words
+df <- wf2021 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2021) #filtering for 2021
+
+
+#Preprocessing
+words$tweet <- gsub("\\shttps://.*$", "", words$tweet) #removing URL's
+words$tweet <- gsub("@\\S+", "",  words$tweet) #removing @'s
+words$tweet <- gsub("#\\S+","", words$tweet) #removing hashtags
+words$tweet <- gsub("amp", "",  words$tweet) #removing &amp's
+words$tweet <- gsub("[[:cntrl:]]","", words$tweet) #removing control character
+words$tweet <- gsub("\\d","", words$tweet) #removing the numbers
+words$tweet <- gsub("[[:punct:]]", "",  words$tweet) #trim punctuation
+words$tweet <- gsub("^[[:space:]]*","", words$tweet) #trim white spaces
+words$tweet <- gsub("[[:space:]]*$","", words$tweet) #trim spaces
+words$tweet <- gsub("\\b\\w{1,2}\\b", "", words$tweet) #removing single letter and two letter words
+words$tweet <- gsub(" +"," ", words$tweet) #removing multiple spaces
+words$tweet <- gsub("â","",words$tweet) #removing special characters
+words$tweet <- gsub("[ºð]", "", words$tweet)
+
+
+#compute word frequency 
+words <- words  %>%
+  unnest_tokens(word, tweet) %>%
+  count(date, word, sort = TRUE)
+
+total_words <- words %>% 
+  group_by(date) %>% 
+  summarize(total = sum(n))
+
+words <- left_join(words, total_words)
+
+#Removing stop words
+Total_words <- anti_join(words, stop_words, by="word")
+
+Total_words
+```
+
+#Task 2.5.2
+```{r Task 2.5.2}
+#Show top 10 words (for each year) by the highest value of word frequency
+a <- data.frame(Total_words$n)
+head(sort(a$Total_words.n, decreasing = TRUE), n=20)
+```
+
+#Task 2.5.3
+```{r Task 2.5.3}
+#Plot histogram of word frequencies for each year
+ggplot(Total_words, aes(n/total, fill = n)) + geom_histogram(show.legend = FALSE) + xlim(NA, 0.0009) +
+facet_wrap(~n, ncol = 3, scales = "free_y")
+```
+
+#Task 2.5.4
+```{r Task 2.5.4}
+#Use Zipf’s law and plot log-log plots of word frequencies and rank for each year
+df <- wf2021 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2021) #filtering for 2021
+words$tweet <- dim(words)[1] + 1 - row_number(words$tweet)
+n <- sum(words$tweet)
+words$frequency <- words$tweet / n
+plot <- words 
+
+graph <- words 
+ggplot(words, aes(tweet, frequency)) + geom_abline(intercept = -0.62, slope = -1.1, color = "gray50", linetype = 2) +
+geom_line(size = 1.1, alpha = 0.8, show.legend = FALSE) + scale_x_log10() +
+scale_y_log10() + labs(title="Zip's law log log plot", x="Rank", y="Frequency")
+```
+
+#Task 2.5.5
+```{r Task 2.5.5}
+#Create bigram network graphs for each year
+#creating bigrams
+df <- wf2021 #import the dataset
+words <- df[c(5,8)] #selecting columns date and tweet
+df$date <- as.Date(df$date)
+words$date <- format(df$date, format="%Y") #formatting date to represent year
+words <- words %>% filter(date == 2021) #filtering for 2021
+#creating bigrams
+bigram <- unnest_tokens(words, output="bigram", input=tweet, token = "ngrams", n = 2)
+bigram <- bigram %>% na.omit()
+
+#seperating the words of bigram
+bigram_sep <- bigram %>%  separate(bigram, c('word1','word2'), sep=" ") %>%
+              anti_join(stop_words, by=c("word1"="word")) %>%
+              anti_join(stop_words, by=c("word2"="word"))
+
+#create a edge-node igraph for top 20 bigram words
+bigram_graph <- bigram_sep %>%
+count(word1,word2,sort=TRUE)%>%
+top_n(20) %>%
+graph_from_data_frame()
+
+#visualize the network grapgh
+ggraph(bigram_graph,
+       layout="igraph",
+       algorithm="kk")+
+  geom_edge_link()+
+  geom_node_point()+
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)+
+  theme_void()
+```
